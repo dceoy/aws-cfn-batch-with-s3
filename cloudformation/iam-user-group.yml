@@ -14,7 +14,7 @@ Resources:
   AdminGroup:
     Type: AWS::IAM::Group
     Properties:
-      GroupName: AdminGroup
+      GroupName: administrator-group
       ManagedPolicyArns:
         - arn:aws:iam::aws:policy/AdministratorAccess
   OpsGroup:
@@ -95,3 +95,9 @@ Resources:
                   StringEqualsIfExists:
                     iam:PassedToService:
                       - ecs-tasks.amazonaws.com
+  EcrUserGroup:
+    Type: AWS::IAM::Group
+    Properties:
+      GroupName: ecr-user-group
+      ManagedPolicyArns:
+        - arn:aws:iam::aws:policy/AmazonEC2ContainerRegistryPowerUser
