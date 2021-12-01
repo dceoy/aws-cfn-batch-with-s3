@@ -121,7 +121,7 @@ Resources:
     Type: AWS::S3::Bucket
     DeletionPolicy: Retain
     Properties:
-      BucketName: !Sub ${SystemName}-${EnvType}-s3-access-log-${AWS::AccountId}
+      BucketName: !Sub ${SystemName}-${EnvType}-access-log-${AWS::AccountId}
       BucketEncryption:
         ServerSideEncryptionConfiguration:
           - ServerSideEncryptionByDefault:

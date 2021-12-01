@@ -1,0 +1,185 @@
+---
+AWSTemplateFormatVersion: 2010-09-09
+Description: AWS CloudFormation Template for Batch
+Parameters:
+  SystemName:
+    Description: System Name.
+    Type: String
+    Default: iobatch
+  EnvType:
+    Description: Environment Type.
+    Type: String
+    Default: dev
+  IAMStackName:
+    Description: IAM Stack Name.
+    Type: String
+    Default: iobatch-dev-iam-role
+  VpcStackName:
+    Description: Vpc Stack Name.
+    Type: String
+    Default: iobatch-dev-vpc
+Resources:
+  # EC2 Security Group
+  Ec2SecurityGroup:
+    Type: AWS::EC2::SecurityGroup
+    DeletionPolicy: Retain
+    Properties:
+      GroupName: !Sub ${SystemName}-${EnvType}-ec2-security-group
+      GroupDescription: !Sub ${SystemName}-${EnvType}-ec2-security-group
+      VpcId:
+        'Fn::ImportValue': !Sub ${VpcStackName}-Vpc
+      Tags:
+        - Key: Name
+          Value: !Sub ${SystemName}-${EnvType}-ec2-security-group
+  # EC2 Launch Template (AL2)
+  Ec2LaunchTemplate:
+    Type: AWS::EC2::LaunchTemplate
+    Properties:
+      LaunchTemplateName: !Sub ${SystemName}-${EnvType}-ec2-launch-template
+      LaunchTemplateData:
+        BlockDeviceMappings:
+          - DeviceName: /dev/xvda
+            Ebs:
+              VolumeSize: 1100
+              VolumeType: gp3
+              Encrypted: true
+              DeleteOnTermination: true
+        InstanceInitiatedShutdownBehavior: terminate
+  # Batch Compute Environments
+  BatchComputeEnvironmentFargate:
+    Type: AWS::Batch::ComputeEnvironment
+    Properties:
+      Type: MANAGED
+      ComputeEnvironmentName: !Sub ${SystemName}-${EnvType}-batch-compute-environment-fargate
+      ComputeResources:
+        MaxvCpus: 512
+        SecurityGroupIds:
+          - !Ref Ec2SecurityGroup
+        Type: FARGATE_SPOT
+        Subnets:
+          - 'Fn::ImportValue': !Sub ${VpcStackName}-ApplicationSubnet1
+          - 'Fn::ImportValue': !Sub ${VpcStackName}-ApplicationSubnet2
+          - 'Fn::ImportValue': !Sub ${VpcStackName}-ApplicationSubnet3
+      ServiceRole:
+        'Fn::ImportValue': !Sub ${IAMStackName}-Ec2ServiceRole
+      State: ENABLED
+  BatchComputeEnvironmentEc2:
+    Type: AWS::Batch::ComputeEnvironment
+    Properties:
+      Type: MANAGED
+      ComputeEnvironmentName: !Sub ${SystemName}-${EnvType}-batch-compute-environment-ec2
+      ComputeResources:
+        AllocationStrategy: SPOT_CAPACITY_OPTIMIZED
+        BidPercentage: 100
+        MaxvCpus: 512
+        SecurityGroupIds:
+          - !Ref Ec2SecurityGroup
+        Type: SPOT
+        LaunchTemplate:
+          LaunchTemplateId:
+            'Fn::ImportValue': !Sub ${SystemName}-${EnvType}-ec2-launch-template
+          Version: $Latest
+        Subnets:
+          - 'Fn::ImportValue': !Sub ${VpcStackName}-ApplicationSubnet1
+          - 'Fn::ImportValue': !Sub ${VpcStackName}-ApplicationSubnet2
+          - 'Fn::ImportValue': !Sub ${VpcStackName}-ApplicationSubnet3
+        MinvCpus: 0
+        Ec2Configuration:
+          - ImageType: ECS_AL2
+        InstanceRole:
+          'Fn::ImportValue': !Sub ${IAMStackName}-BatchInstanceProfile
+        InstanceTypes:
+          - c6g
+          - r6g
+          - m6g
+      ServiceRole:
+        'Fn::ImportValue': !Sub ${IAMStackName}-Ec2ServiceRole
+      State: ENABLED
+  BatchComputeEnvironmentEc2Nvidia:
+    Type: AWS::Batch::ComputeEnvironment
+    Properties:
+      Type: MANAGED
+      ComputeEnvironmentName: !Sub ${SystemName}-${EnvType}-batch-compute-environment-ec2-nvidia
+      ComputeResources:
+        AllocationStrategy: SPOT_CAPACITY_OPTIMIZED
+        BidPercentage: 100
+        MaxvCpus: 512
+        SecurityGroupIds:
+          - !Ref Ec2SecurityGroup
+        Type: SPOT
+        LaunchTemplate:
+          LaunchTemplateId:
+            'Fn::ImportValue': !Sub ${SystemName}-${EnvType}-ec2-launch-template
+          Version: $Latest
+        Subnets:
+          - 'Fn::ImportValue': !Sub ${VpcStackName}-ApplicationSubnet1
+          - 'Fn::ImportValue': !Sub ${VpcStackName}-ApplicationSubnet2
+          - 'Fn::ImportValue': !Sub ${VpcStackName}-ApplicationSubnet3
+        MinvCpus: 0
+        Ec2Configuration:
+          - ImageType: ECS_AL2_NVIDIA
+        InstanceRole:
+          'Fn::ImportValue': !Sub ${IAMStackName}-BatchInstanceProfile
+        InstanceTypes:
+          - p4
+          - g4dn
+      ServiceRole:
+        'Fn::ImportValue': !Sub ${IAMStackName}-Ec2ServiceRole
+      State: ENABLED
+  # Batch Job Queues
+  BatchJobQueueFargate:
+    Type: AWS::Batch::JobQueue
+    Properties:
+      ComputeEnvironmentOrder:
+        - Order: 1
+          ComputeEnvironment: !Ref ComputeEnvironment
+      JobQueueName: !Sub ${SystemName}-${EnvType}-batch-job-queue-fargate
+      Priority: 1
+      State: ENABLED
+  BatchJobQueueEc2:
+    Type: AWS::Batch::JobQueue
+    Properties:
+      ComputeEnvironmentOrder:
+        - Order: 1
+          ComputeEnvironment: !Ref BatchComputeEnvironmentEc2
+      JobQueueName: !Sub ${SystemName}-${EnvType}-batch-job-queue-ec2
+      Priority: 1
+      State: ENABLED
+  BatchJobQueueEc2Nvidia:
+    Type: AWS::Batch::JobQueue
+    Properties:
+      ComputeEnvironmentOrder:
+        - Order: 1
+          ComputeEnvironment: !Ref BatchComputeEnvironmentEc2Nvidia
+      JobQueueName: !Sub ${SystemName}-${EnvType}-batch-job-queue-ec2-nvidia
+      Priority: 1
+      State: ENABLED
+Outputs:
+  Ec2LaunchTemplate:
+    Value: !Ref Ec2LaunchTemplate
+    Export:
+      Name: !Sub ${AWS::StackName}-Ec2LaunchTemplate
+  BatchComputeEnvironmentFargate:
+    Value: !Ref BatchComputeEnvironmentFargate
+    Export:
+      Name: !Sub ${AWS::StackName}-BatchComputeEnvironmentFargate
+  BatchComputeEnvironmentEc2:
+    Value: !Ref BatchComputeEnvironmentEc2
+    Export:
+      Name: !Sub ${AWS::StackName}-BatchComputeEnvironmentEc2
+  BatchComputeEnvironmentEc2Nvidia:
+    Value: !Ref BatchComputeEnvironmentEc2Nvidia
+    Export:
+      Name: !Sub ${AWS::StackName}-BatchComputeEnvironmentEc2Nvidia
+  BatchJobQueueFargate:
+    Value: !Ref BatchJobQueueFargate
+    Export:
+      Name: !Sub ${AWS::StackName}-BatchJobQueueFargate
+  BatchJobQueueEc2:
+    Value: !Ref BatchJobQueueEc2
+    Export:
+      Name: !Sub ${AWS::StackName}-BatchJobQueueEc2
+  BatchJobQueueEc2Nvidia:
+    Value: !Ref BatchJobQueueEc2Nvidia
+    Export:
+      Name: !Sub ${AWS::StackName}-BatchJobQueueEc2Nvidia
