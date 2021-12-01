@@ -10,10 +10,10 @@ Parameters:
     Description: Environment Type.
     Type: String
     Default: dev
-  S3BucketStackName:
+  S3StackName:
     Description: S3 Stack Name.
     Type: String
-    Default: iobatch-dev-s3-bucket
+    Default: iobatch-dev-s3
 Resources:
   BatchServiceRole:
     Type: AWS::IAM::Role
@@ -52,7 +52,7 @@ Resources:
                   'Fn::Join':
                     - ''
                     - - 'arn:aws:s3:::'
-                      - 'Fn::ImportValue': !Sub ${S3BucketStackName}-InputBucket
+                      - 'Fn::ImportValue': !Sub ${S3StackName}-InputBucket
                       - /*
                 Effect: Allow
                 Action:
@@ -62,7 +62,7 @@ Resources:
                   'Fn::Join':
                     - ''
                     - - 'arn:aws:s3:::'
-                      - 'Fn::ImportValue': !Sub ${S3BucketStackName}-ReferenceBucket
+                      - 'Fn::ImportValue': !Sub ${S3StackName}-ReferenceBucket
                       - /*
                 Effect: Allow
                 Action:
@@ -72,7 +72,7 @@ Resources:
                   'Fn::Join':
                     - ''
                     - - 'arn:aws:s3:::'
-                      - 'Fn::ImportValue': !Sub ${S3BucketStackName}-OutputBucket
+                      - 'Fn::ImportValue': !Sub ${S3StackName}-OutputBucket
                       - /*
                 Effect: Allow
                 Action:
@@ -83,7 +83,7 @@ Resources:
                   'Fn::Join':
                     - ''
                     - - 'arn:aws:s3:::'
-                      - 'Fn::ImportValue': !Sub ${S3BucketStackName}-ArchiveBucket
+                      - 'Fn::ImportValue': !Sub ${S3StackName}-ArchiveBucket
                       - /*
                 Effect: Allow
                 Action:
