@@ -63,11 +63,11 @@ Resources:
       ServiceRole:
         'Fn::ImportValue': !Sub ${IAMStackName}-Ec2ServiceRole
       State: ENABLED
-  BatchComputeEnvironmentEc2:
+  BatchComputeEnvironmentEc2Graviton:
     Type: AWS::Batch::ComputeEnvironment
     Properties:
       Type: MANAGED
-      ComputeEnvironmentName: !Sub ${SystemName}-${EnvType}-batch-compute-environment-ec2
+      ComputeEnvironmentName: !Sub ${SystemName}-${EnvType}-batch-compute-environment-ec2-graviton
       ComputeResources:
         AllocationStrategy: SPOT_CAPACITY_OPTIMIZED
         BidPercentage: 100
@@ -90,8 +90,40 @@ Resources:
           'Fn::ImportValue': !Sub ${IAMStackName}-BatchInstanceProfile
         InstanceTypes:
           - c6g
-          - r6g
           - m6g
+          - r6g
+      ServiceRole:
+        'Fn::ImportValue': !Sub ${IAMStackName}-Ec2ServiceRole
+      State: ENABLED
+  BatchComputeEnvironmentEc2Intel:
+    Type: AWS::Batch::ComputeEnvironment
+    Properties:
+      Type: MANAGED
+      ComputeEnvironmentName: !Sub ${SystemName}-${EnvType}-batch-compute-environment-ec2-intel
+      ComputeResources:
+        AllocationStrategy: SPOT_CAPACITY_OPTIMIZED
+        BidPercentage: 100
+        MaxvCpus: 512
+        SecurityGroupIds:
+          - !Ref Ec2SecurityGroup
+        Type: SPOT
+        LaunchTemplate:
+          LaunchTemplateId:
+            'Fn::ImportValue': !Sub ${SystemName}-${EnvType}-ec2-launch-template
+          Version: $Latest
+        Subnets:
+          - 'Fn::ImportValue': !Sub ${VpcStackName}-ApplicationSubnet1
+          - 'Fn::ImportValue': !Sub ${VpcStackName}-ApplicationSubnet2
+          - 'Fn::ImportValue': !Sub ${VpcStackName}-ApplicationSubnet3
+        MinvCpus: 0
+        Ec2Configuration:
+          - ImageType: ECS_AL2
+        InstanceRole:
+          'Fn::ImportValue': !Sub ${IAMStackName}-BatchInstanceProfile
+        InstanceTypes:
+          - c6i
+          - m6i
+          - r5
       ServiceRole:
         'Fn::ImportValue': !Sub ${IAMStackName}-Ec2ServiceRole
       State: ENABLED
@@ -136,13 +168,22 @@ Resources:
       JobQueueName: !Sub ${SystemName}-${EnvType}-batch-job-queue-fargate
       Priority: 1
       State: ENABLED
-  BatchJobQueueEc2:
+  BatchJobQueueEc2Graviton:
     Type: AWS::Batch::JobQueue
     Properties:
       ComputeEnvironmentOrder:
         - Order: 1
-          ComputeEnvironment: !Ref BatchComputeEnvironmentEc2
-      JobQueueName: !Sub ${SystemName}-${EnvType}-batch-job-queue-ec2
+          ComputeEnvironment: !Ref BatchComputeEnvironmentEc2Graviton
+      JobQueueName: !Sub ${SystemName}-${EnvType}-batch-job-queue-ec2-graviton
+      Priority: 1
+      State: ENABLED
+  BatchJobQueueEc2Intel:
+    Type: AWS::Batch::JobQueue
+    Properties:
+      ComputeEnvironmentOrder:
+        - Order: 1
+          ComputeEnvironment: !Ref BatchComputeEnvironmentEc2Intel
+      JobQueueName: !Sub ${SystemName}-${EnvType}-batch-job-queue-ec2-intel
       Priority: 1
       State: ENABLED
   BatchJobQueueEc2Nvidia:
@@ -163,10 +204,14 @@ Outputs:
     Value: !Ref BatchComputeEnvironmentFargate
     Export:
       Name: !Sub ${AWS::StackName}-BatchComputeEnvironmentFargate
-  BatchComputeEnvironmentEc2:
-    Value: !Ref BatchComputeEnvironmentEc2
+  BatchComputeEnvironmentEc2Graviton:
+    Value: !Ref BatchComputeEnvironmentEc2Graviton
     Export:
-      Name: !Sub ${AWS::StackName}-BatchComputeEnvironmentEc2
+      Name: !Sub ${AWS::StackName}-BatchComputeEnvironmentEc2Graviton
+  BatchComputeEnvironmentEc2Intel:
+    Value: !Ref BatchComputeEnvironmentEc2Intel
+    Export:
+      Name: !Sub ${AWS::StackName}-BatchComputeEnvironmentEc2Intel
   BatchComputeEnvironmentEc2Nvidia:
     Value: !Ref BatchComputeEnvironmentEc2Nvidia
     Export:
@@ -175,10 +220,14 @@ Outputs:
     Value: !Ref BatchJobQueueFargate
     Export:
       Name: !Sub ${AWS::StackName}-BatchJobQueueFargate
-  BatchJobQueueEc2:
-    Value: !Ref BatchJobQueueEc2
+  BatchJobQueueEc2Graviton:
+    Value: !Ref BatchJobQueueEc2Graviton
     Export:
-      Name: !Sub ${AWS::StackName}-BatchJobQueueEc2
+      Name: !Sub ${AWS::StackName}-BatchJobQueueEc2Graviton
+  BatchJobQueueEc2Intel:
+    Value: !Ref BatchJobQueueEc2Intel
+    Export:
+      Name: !Sub ${AWS::StackName}-BatchJobQueueEc2Intel
   BatchJobQueueEc2Nvidia:
     Value: !Ref BatchJobQueueEc2Nvidia
     Export:
